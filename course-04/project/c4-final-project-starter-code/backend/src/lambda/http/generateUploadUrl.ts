@@ -5,9 +5,9 @@ import * as middy from 'middy'
 import { cors, httpErrorHandler } from 'middy/middlewares'
 
 // import { createAttachmentPresignedUrl } from '../../businessLogic/todos'
-import { setAttachmentUrl as createAttachmentPresignedUrl } from '../../helpers/todos'
+import { setAttachmentUrl as createAttachmentPresignedUrl } from '../../businessLogic/todos'
 import { getUserId } from '../utils'
-import { getUploadUrl, imageIdForUrl } from '../../helpers/attachmentUtils'
+import { getUploadUrl, imageIdForUrl } from '../../fileStorage/attachmentUtils'
 
 export const handler = middy(
   async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
