@@ -11,7 +11,9 @@ import {
   Icon,
   Input,
   Image,
-  Loader
+  Loader,
+  Pagination,
+  PaginationProps
 } from 'semantic-ui-react'
 
 import { createTodo, deleteTodo, getTodos, patchTodo } from '../api/todos-api'
@@ -25,15 +27,23 @@ interface TodosProps {
 
 interface TodosState {
   todos: Todo[]
+  todosPage: Todo[]
   newTodoName: string
   loadingTodos: boolean
+  begin: number
+  end: number
+  activePage: number
 }
 
 export class Todos extends React.PureComponent<TodosProps, TodosState> {
   state: TodosState = {
     todos: [],
+    todosPage: [],
     newTodoName: '',
-    loadingTodos: true
+    loadingTodos: true,
+    begin: 0,
+    end: 5,
+    activePage: 1
   }
 
   handleNameChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -55,6 +65,7 @@ export class Todos extends React.PureComponent<TodosProps, TodosState> {
         todos: [...this.state.todos, newTodo],
         newTodoName: ''
       })
+      console.log('cronTodoCreateeate', this.state)
     } catch {
       alert('Todo creation failed')
     }
@@ -64,7 +75,7 @@ export class Todos extends React.PureComponent<TodosProps, TodosState> {
     try {
       await deleteTodo(this.props.auth.getIdToken(), todoId)
       this.setState({
-        todos: this.state.todos.filter(todo => todo.todoId !== todoId)
+        todos: this.state.todos.filter((todo) => todo.todoId !== todoId)
       })
     } catch {
       alert('Todo deletion failed')
@@ -84,6 +95,9 @@ export class Todos extends React.PureComponent<TodosProps, TodosState> {
           [pos]: { done: { $set: !todo.done } }
         })
       })
+      this.setState({
+        todosPage: this.state.todos.slice(this.state.begin, this.state.end)
+      })
     } catch {
       alert('Todo deletion failed')
     }
@@ -94,10 +108,20 @@ export class Todos extends React.PureComponent<TodosProps, TodosState> {
       const todos = await getTodos(this.props.auth.getIdToken())
       this.setState({
         todos,
-        loadingTodos: false
+        loadingTodos: false,
+        todosPage: todos.slice(this.state.begin, this.state.end)
       })
+      console.log(this.state)
     } catch (e) {
       alert(`Failed to fetch todos: ${e}`)
+    }
+  }
+
+  componentDidUpdate(prevProps: TodosProps, prevState: TodosState) {
+    if (prevState.todos.length !== this.state.todos.length) {
+      this.setState({
+        todosPage: this.state.todos.slice(this.state.begin, this.state.end)
+      })
     }
   }
 
@@ -125,6 +149,7 @@ export class Todos extends React.PureComponent<TodosProps, TodosState> {
               content: 'New task',
               onClick: this.onTodoCreate
             }}
+            value={this.state.newTodoName}
             fluid
             actionPosition="left"
             placeholder="To change the world..."
@@ -156,52 +181,76 @@ export class Todos extends React.PureComponent<TodosProps, TodosState> {
     )
   }
 
+  async btnClick(
+    event: React.MouseEvent<HTMLAnchorElement>,
+    data: PaginationProps
+  ) {
+    console.log('btnClick')
+    await this.setState({ activePage: data.activePage as number })
+    await this.setState({ begin: this.state.activePage * 5 - 5 })
+    await this.setState({ end: this.state.activePage * 5 })
+    this.setState({
+      todosPage: this.state.todos.slice(this.state.begin, this.state.end)
+    })
+  }
+
   renderTodosList() {
     return (
-      <Grid padded>
-        {this.state.todos?.map((todo, pos) => {
-          return (
-            <Grid.Row key={todo.todoId}>
-              <Grid.Column width={1} verticalAlign="middle">
-                <Checkbox
-                  onChange={() => this.onTodoCheck(pos)}
-                  checked={todo.done}
-                />
-              </Grid.Column>
-              <Grid.Column width={10} verticalAlign="middle">
-                {todo.name}
-              </Grid.Column>
-              <Grid.Column width={3} floated="right">
-                {todo.dueDate}
-              </Grid.Column>
-              <Grid.Column width={1} floated="right">
-                <Button
-                  icon
-                  color="blue"
-                  onClick={() => this.onEditButtonClick(todo.todoId)}
-                >
-                  <Icon name="pencil" />
-                </Button>
-              </Grid.Column>
-              <Grid.Column width={1} floated="right">
-                <Button
-                  icon
-                  color="red"
-                  onClick={() => this.onTodoDelete(todo.todoId)}
-                >
-                  <Icon name="delete" />
-                </Button>
-              </Grid.Column>
-              {todo.attachmentUrl && (
-                <Image src={todo.attachmentUrl} size="small" wrapped />
-              )}
-              <Grid.Column width={16}>
-                <Divider />
-              </Grid.Column>
-            </Grid.Row>
-          )
-        })}
-      </Grid>
+      <div>
+        <Grid padded>
+          {this.state.todosPage?.map((todo, pos) => {
+            return (
+              <Grid.Row key={todo.todoId}>
+                <Grid.Column width={1} verticalAlign="middle">
+                  <Checkbox
+                    onChange={() => this.onTodoCheck(pos)}
+                    checked={todo.done}
+                  />
+                </Grid.Column>
+                <Grid.Column width={10} verticalAlign="middle">
+                  {todo.name}
+                </Grid.Column>
+                <Grid.Column width={3} floated="right">
+                  {todo.dueDate}
+                </Grid.Column>
+                <Grid.Column width={1} floated="right">
+                  <Button
+                    icon
+                    color="blue"
+                    onClick={() => this.onEditButtonClick(todo.todoId)}
+                  >
+                    <Icon name="pencil" />
+                  </Button>
+                </Grid.Column>
+                <Grid.Column width={1} floated="right">
+                  <Button
+                    icon
+                    color="red"
+                    onClick={() => this.onTodoDelete(todo.todoId)}
+                  >
+                    <Icon name="delete" />
+                  </Button>
+                </Grid.Column>
+                {todo.attachmentUrl && (
+                  <Image src={todo.attachmentUrl} size="small" wrapped />
+                )}
+                <Grid.Column width={16}>
+                  <Divider />
+                </Grid.Column>
+              </Grid.Row>
+            )
+          })}
+          <Grid.Row>
+            <Grid.Column width={1} divided={true.toString()}>
+              <Pagination
+                defaultActivePage={1}
+                totalPages={Math.ceil(this.state.todos.length / 5)}
+                onPageChange={(event, data) => this.btnClick(event, data)}
+              />
+            </Grid.Column>
+          </Grid.Row>
+        </Grid>
+      </div>
     )
   }
 
